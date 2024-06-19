@@ -1,2 +1,2 @@
 # SQL Projects
-Video Sales
+Video Game Sales

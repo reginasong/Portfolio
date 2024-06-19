@@ -1,0 +1,65 @@
+-- Top 10 best selling Nintendo games in 2005-2010
+SELECT *
+FROM game_sales
+WHERE year BETWEEN 2005 AND 2010 
+	AND publisher = 'Nintendo'
+ORDER BY games_sold DESC
+LIMIT 10;
+
+-- Top 10 years with the highest average critic score
+-- Filtered to only years where at least 5 games were released to ensure a good sample size
+SELECT year, 
+	   COUNT(g.name) AS num_games, 
+	   ROUND(AVG(critic_score),2) AS avg_critic_score
+FROM game_sales g
+INNER JOIN reviews r
+ON g.name = r.name
+GROUP BY g.year
+HAVING COUNT(g.name) >= 5
+ORDER BY avg_critic_score DESC
+LIMIT 10;
+
+-- Top 10 games from the year with the highest yearly average critic score
+-- Using the previous query as the CTE
+WITH highest_reviewed_year AS (
+							SELECT g.year, 
+	   								COUNT(g.name) AS num_games, 
+									ROUND(AVG(critic_score),2) AS avg_critic_score
+							FROM game_sales g
+							INNER JOIN reviews r
+							ON g.name = r.name
+							GROUP BY g.year
+							HAVING COUNT(g.name) >= 5
+							ORDER BY avg_critic_score DESC
+							LIMIT 1
+) 
+
+SELECT  g.name, r.critic_score 
+FROM highest_reviewed_year h
+INNER JOIN game_sales g
+ON h.year = g.year
+INNER JOIN reviews r
+ON g.name = r.name
+ORDER BY r.critic_score DESC
+LIMIT 10;
+
+-- The golden_years of video games where avg critic score and avg user score both exceed rating of 9.0 
+SELECT u.year, 
+	   u.num_games, 
+	   avg_critic_score, 
+	   avg_user_score, 
+	   abs(avg_critic_score - avg_user_score) AS diff
+FROM users_avg_year_rating u
+INNER JOIN critics_avg_year_rating c
+ON u.year = c.year 
+WHERE avg_critic_score > 9 OR avg_user_score > 9
+ORDER BY diff;
+
+-- Top 10 video games of all time based on the combination of the critic score and the user score
+SELECT g.year, g.name, (r.critic_score + r.user_score)/2 AS avg_score, g.publisher, g.games_sold
+FROM game_sales g
+INNER JOIN reviews r
+ON g.name = r.name
+WHERE critic_score IS NOT NULL AND user_score IS NOT NULL
+ORDER BY avg_score DESC
+LIMIT 10;

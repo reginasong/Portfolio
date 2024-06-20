@@ -1,0 +1,36 @@
+-- Computing moving average and moving standard deviation
+WITH CTE AS (
+	SELECT operator, 
+			height,
+			AVG(height) OVER(PARTITION BY operator ORDER BY item_no RANGE BETWEEN 4 PRECEDING AND CURRENT ROW) AS avg_height, 
+			STDDEV(height) OVER(PARTITION BY operator ORDER BY item_no RANGE BETWEEN 4 PRECEDING AND CURRENT ROW) AS stddev_height, 			item_no
+FROM manufacturing_parts
+),
+-- Defining UCL (upper control limit) and LCL (lower control limit)
+-- UCL is the highest acceptable height for the parts, LCL the lowest. Parts should fall between these two limits
+CTE2 AS (
+	SELECT operator, 
+			ROW_NUMBER() OVER(PARTITION BY operator) row_number, 
+			height, 
+			avg_height, 
+			stddev_height, 
+			(avg_height+3*stddev_height/sqrt(5)) AS ucl, 
+			(avg_height-3*stddev_height/sqrt(5)) AS lcl, 
+			item_no
+FROM CTE
+)
+
+-- Determined whether the manufacturing process is performing within acceptable control limits
+SELECT operator, 
+		row_number, 
+		height, 
+		avg_height, 
+		stddev_height, 
+		ucl, 
+		lcl,
+		CASE WHEN height < ucl AND height > lcl 
+			THEN FALSE
+			ELSE TRUE END AS alert
+FROM CTE2
+WHERE row_number >=5
+ORDER BY item_no
